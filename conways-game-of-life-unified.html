@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conway's Game of Life - Unified Patterns</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 350px;
+            background-color: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+        }
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        h1 {
+            margin-top: 0;
+            color: #4CAF50;
+            font-size: 24px;
+        }
+        h2 {
+            color: #4CAF50;
+            font-size: 18px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        #canvas {
+            border: 2px solid #4CAF50;
+            cursor: crosshair;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        button.active {
+            background-color: #2196F3;
+        }
+        .control-group {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 8px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+            font-size: 14px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            background-color: #444;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .stats {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        .stat-value {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .pattern-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #3a3a3a;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .pattern-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            background-color: #444;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .pattern-item button {
+            margin: 0 2px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .pattern-btn {
+            flex: 1;
+            margin-right: 10px;
+        }
+        button.delete-btn {
+            background-color: #f44336;
+        }
+        button.delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #4CAF50;
+            font-size: 16px;
+        }
+        .info ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .draw-mode-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .draw-mode-indicator.draw {
+            background-color: #4CAF50;
+        }
+        .draw-mode-indicator.erase {
+            background-color: #f44336;
+        }
+        #speedValue, #cellSizeValue, #gridSizeValue {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        /* Pattern Editor Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+        .modal-content {
+            background-color: #2a2a2a;
+            margin: 2% auto;
+            padding: 20px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            width: 95%;
+            max-width: 1000px;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #fff;
+        }
+        #editorCanvas {
+            border: 1px solid #555;
+            cursor: crosshair;
+            display: block;
+            margin: 15px auto;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .editor-controls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .editor-controls button {
+            padding: 8px 15px;
+            font-size: 13px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            background-color: #444;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="patternModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditor()">&times;</span>
+            <h2>Pattern Editor</h2>
+            <input type="text" id="patternName" placeholder="Pattern name">
+            <canvas id="editorCanvas"></canvas>
+            <div class="editor-controls">
+                <button onclick="movePattern('up')">↑ Up</button>
+                <button onclick="movePattern('down')">↓ Down</button>
+                <button onclick="movePattern('left')">← Left</button>
+                <button onclick="movePattern('right')">→ Right</button>
+            </div>
+            <div class="editor-controls">
+                <button onclick="clearEditor()">Clear</button>
+                <button onclick="savePattern()">Save</button>
+                <button onclick="closeEditor()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <h1>Conway's Game of Life</h1>
+            
+            <div class="controls">
+                <button id="playBtn">Play</button>
+                <button id="pauseBtn" disabled>Pause</button>
+                <button id="stepBtn">Step</button>
+                <button id="clearBtn">Clear</button>
+                <button id="randomBtn">Random</button>
+            </div>
+            
+            <div class="control-group">
+                <button id="drawBtn" class="active">Draw Mode</button>
+                <button id="eraseBtn">Erase Mode</button>
+                <span class="draw-mode-indicator draw" id="modeIndicator">Drawing</span>
+            </div>
+            
+            <div class="control-group">
+                <label>Speed: <span id="speedValue">10</span> gen/sec</label>
+                <input type="range" id="speedSlider" min="1" max="60" value="10">
+                
+                <label>Cell Size: <span id="cellSizeValue">8</span>px</label>
+                <input type="range" id="cellSizeSlider" min="2" max="20" value="8">
+                
+                <label>Grid Size: <span id="gridSizeValue">100</span>×100</label>
+                <input type="range" id="gridSizeSlider" min="50" max="200" value="100" step="10">
+            </div>
+            
+            <h2>Patterns</h2>
+            <div class="control-group">
+                <button onclick="createPattern()" style="width: 100%;">Create New Pattern</button>
+                <div class="pattern-list" id="patternList">
+                    <!-- Patterns will be listed here -->
+                </div>
+            </div>
+            
+            <div class="stats">
+                <h3 style="margin-top: 0;">Statistics</h3>
+                <div class="stat-row">
+                    <span>Generation:</span>
+                    <span class="stat-value" id="generation">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Population:</span>
+                    <span class="stat-value" id="population">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Births:</span>
+                    <span class="stat-value" id="births">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Deaths:</span>
+                    <span class="stat-value" id="deaths">0</span>
+                </div>
+            </div>
+            
+            <div class="info">
+                <h3>Rules</h3>
+                <ul>
+                    <li>Any live cell with 2-3 neighbors survives</li>
+                    <li>Any dead cell with exactly 3 neighbors becomes alive</li>
+                    <li>All other cells die or stay dead</li>
+                </ul>
+                <h3>Controls</h3>
+                <ul>
+                    <li>Click/drag to draw cells</li>
+                    <li>Right-click/drag to erase</li>
+                    <li>Scroll to zoom in/out</li>
+                    <li>Click patterns to place them</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="main-area">
+            <canvas id="canvas"></canvas>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('tooltip');
+        const modal = document.getElementById('patternModal');
+        const editorCanvas = document.getElementById('editorCanvas');
+        const editorCtx = editorCanvas.getContext('2d');
+        
+        // Controls
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const drawBtn = document.getElementById('drawBtn');
+        const eraseBtn = document.getElementById('eraseBtn');
+        const modeIndicator = document.getElementById('modeIndicator');
+        
+        // Sliders
+        const speedSlider = document.getElementById('speedSlider');
+        const cellSizeSlider = document.getElementById('cellSizeSlider');
+        const gridSizeSlider = document.getElementById('gridSizeSlider');
+        const speedValue = document.getElementById('speedValue');
+        const cellSizeValue = document.getElementById('cellSizeValue');
+        const gridSizeValue = document.getElementById('gridSizeValue');
+        
+        // Stats
+        const generationSpan = document.getElementById('generation');
+        const populationSpan = document.getElementById('population');
+        const birthsSpan = document.getElementById('births');
+        const deathsSpan = document.getElementById('deaths');
+        
+        // Game state
+        let gridSize = 100;
+        let cellSize = 8;
+        let grid = [];
+        let nextGrid = [];
+        let isRunning = false;
+        let generation = 0;
+        let drawMode = true; // true = draw, false = erase
+        let isDrawing = false;
+        let selectedPattern = null;
+        let births = 0;
+        let deaths = 0;
+        
+        // Pattern editor state
+        let editorGrid = [];
+        let editorRows = 30;
+        let editorCols = 60;
+        let editorCellSize = 15;
+        let isDrawingInEditor = false;
+        let editingPattern = null;
+        
+        // Default patterns
+        const defaultPatterns = {
+            'Glider': [[0,1],[1,2],[2,0],[2,1],[2,2]],
+            'LWSS': [[0,0],[0,3],[1,4],[2,0],[2,4],[3,1],[3,2],[3,3],[3,4]],
+            'MWSS': [[0,2],[1,0],[1,4],[2,5],[3,0],[3,5],[4,1],[4,2],[4,3],[4,4],[4,5]],
+            'HWSS': [[0,2],[0,3],[1,0],[1,5],[2,6],[3,0],[3,6],[4,1],[4,2],[4,3],[4,4],[4,5],[4,6]],
+            'Blinker': [[0,1],[1,1],[2,1]],
+            'Toad': [[0,1],[0,2],[0,3],[1,0],[1,1],[1,2]],
+            'Beacon': [[0,0],[0,1],[1,0],[2,3],[3,2],[3,3]],
+            'Pulsar': [
+                [0,2],[0,3],[0,4],[0,8],[0,9],[0,10],
+                [2,0],[2,5],[2,7],[2,12],
+                [3,0],[3,5],[3,7],[3,12],
+                [4,0],[4,5],[4,7],[4,12],
+                [5,2],[5,3],[5,4],[5,8],[5,9],[5,10],
+                [7,2],[7,3],[7,4],[7,8],[7,9],[7,10],
+                [8,0],[8,5],[8,7],[8,12],
+                [9,0],[9,5],[9,7],[9,12],
+                [10,0],[10,5],[10,7],[10,12],
+                [12,2],[12,3],[12,4],[12,8],[12,9],[12,10]
+            ],
+            'Glider Gun': [
+                [4,0],[5,0],[4,1],[5,1],
+                [4,10],[5,10],[6,10],[3,11],[7,11],[2,12],[8,12],[2,13],[8,13],
+                [5,14],[3,15],[7,15],[4,16],[5,16],[6,16],[5,17],
+                [2,20],[3,20],[4,20],[2,21],[3,21],[4,21],[1,22],[5,22],
+                [0,24],[1,24],[5,24],[6,24],
+                [2,34],[3,34],[2,35],[3,35]
+            ],
+            'Pentadecathlon': [
+                [2,1],[3,1],
+                [4,0],[4,2],
+                [5,1],[6,1],[7,1],[8,1],
+                [9,0],[9,2],
+                [10,1],[11,1]
+            ],
+            'Diehard': [[0,6],[1,0],[1,1],[2,1],[2,5],[2,6],[2,7]],
+            'Acorn': [[0,1],[1,3],[2,0],[2,1],[2,4],[2,5],[2,6]],
+            'R-pentomino': [[0,1],[0,2],[1,0],[1,1],[2,1]],
+            'Block': [[0,0],[0,1],[1,0],[1,1]]
+        };
+        
+        // Initialize patterns from localStorage or defaults
+        let patterns = JSON.parse(localStorage.getItem('gameOfLifePatterns')) || {};
+        if (Object.keys(patterns).length === 0) {
+            patterns = {...defaultPatterns};
+            localStorage.setItem('gameOfLifePatterns', JSON.stringify(patterns));
+        }
+        
+        // Initialize grid
+        function initGrid() {
+            grid = [];
+            nextGrid = [];
+            for (let i = 0; i < gridSize; i++) {
+                grid[i] = new Array(gridSize).fill(false);
+                nextGrid[i] = new Array(gridSize).fill(false);
+            }
+            generation = 0;
+            births = 0;
+            deaths = 0;
+            updateStats();
+        }
+        
+        // Count live neighbors
+        function countNeighbors(row, col) {
+            let count = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (i === 0 && j === 0) continue;
+                    const newRow = row + i;
+                    const newCol = col + j;
+                    if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
+                        if (grid[newRow][newCol]) count++;
+                    }
+                }
+            }
+            return count;
+        }
+        
+        // Update grid based on Game of Life rules
+        function updateGrid() {
+            let newBirths = 0;
+            let newDeaths = 0;
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const neighbors = countNeighbors(i, j);
+                    const alive = grid[i][j];
+                    
+                    if (alive) {
+                        if (neighbors === 2 || neighbors === 3) {
+                            nextGrid[i][j] = true;
+                        } else {
+                            nextGrid[i][j] = false;
+                            newDeaths++;
+                        }
+                    } else {
+                        if (neighbors === 3) {
+                            nextGrid[i][j] = true;
+                            newBirths++;
+                        } else {
+                            nextGrid[i][j] = false;
+                        }
+                    }
+                }
+            }
+            
+            // Swap grids
+            [grid, nextGrid] = [nextGrid, grid];
+            generation++;
+            births = newBirths;
+            deaths = newDeaths;
+            updateStats();
+        }
+        
+        // Draw grid on canvas
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#4CAF50';
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j]) {
+                        ctx.fillRect(j * cellSize, i * cellSize, cellSize - 1, cellSize - 1);
+                    }
+                }
+            }
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i <= gridSize; i++) {
+                ctx.moveTo(i * cellSize, 0);
+                ctx.lineTo(i * cellSize, gridSize * cellSize);
+                ctx.moveTo(0, i * cellSize);
+                ctx.lineTo(gridSize * cellSize, i * cellSize);
+            }
+            ctx.stroke();
+        }
+        
+        // Update statistics
+        function updateStats() {
+            let population = 0;
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j]) population++;
+                }
+            }
+            
+            generationSpan.textContent = generation;
+            populationSpan.textContent = population;
+            birthsSpan.textContent = births;
+            deathsSpan.textContent = deaths;
+        }
+        
+        // Animation loop
+        let lastTime = 0;
+        function animate(currentTime) {
+            if (isRunning) {
+                const deltaTime = currentTime - lastTime;
+                const interval = 1000 / parseInt(speedSlider.value);
+                
+                if (deltaTime >= interval) {
+                    updateGrid();
+                    draw();
+                    lastTime = currentTime;
+                }
+                
+                requestAnimationFrame(animate);
+            }
+        }
+        
+        // Control functions
+        function play() {
+            isRunning = true;
+            playBtn.disabled = true;
+            pauseBtn.disabled = false;
+            stepBtn.disabled = true;
+            lastTime = performance.now();
+            requestAnimationFrame(animate);
+        }
+        
+        function pause() {
+            isRunning = false;
+            playBtn.disabled = false;
+            pauseBtn.disabled = true;
+            stepBtn.disabled = false;
+        }
+        
+        function step() {
+            if (!isRunning) {
+                updateGrid();
+                draw();
+            }
+        }
+        
+        function clear() {
+            pause();
+            initGrid();
+            draw();
+        }
+        
+        function randomize() {
+            pause();
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    grid[i][j] = Math.random() < 0.3;
+                }
+            }
+            generation = 0;
+            births = 0;
+            deaths = 0;
+            updateStats();
+            draw();
+        }
+        
+        // Pattern management
+        function updatePatternList() {
+            const patternList = document.getElementById('patternList');
+            const patternNames = Object.keys(patterns).sort();
+            
+            patternList.innerHTML = patternNames.map(name => `
+                <div class="pattern-item">
+                    <button class="pattern-btn" onclick="selectPattern('${name}')">${name}</button>
+                    <button onclick="editPattern('${name}')">Edit</button>
+                    <button class="delete-btn" onclick="deletePattern('${name}')">Delete</button>
+                </div>
+            `).join('');
+        }
+        
+        function selectPattern(name) {
+            selectedPattern = name;
+            drawMode = true;
+            drawBtn.classList.add('active');
+            eraseBtn.classList.remove('active');
+            modeIndicator.textContent = `Placing ${name}`;
+            modeIndicator.className = 'draw-mode-indicator draw';
+        }
+        
+        function createPattern() {
+            editingPattern = null;
+            document.getElementById('patternName').value = '';
+            initEditorGrid();
+            modal.style.display = 'block';
+        }
+        
+        function editPattern(name) {
+            editingPattern = name;
+            document.getElementById('patternName').value = name;
+            
+            // Load pattern into editor
+            initEditorGrid();
+            const pattern = patterns[name];
+            if (pattern) {
+                pattern.forEach(([row, col]) => {
+                    if (row < editorRows && col < editorCols) {
+                        editorGrid[row][col] = true;
+                    }
+                });
+            }
+            drawEditorGrid();
+            modal.style.display = 'block';
+        }
+        
+        function deletePattern(name) {
+            if (confirm(`Delete pattern "${name}"?`)) {
+                delete patterns[name];
+                localStorage.setItem('gameOfLifePatterns', JSON.stringify(patterns));
+                updatePatternList();
+            }
+        }
+        
+        function savePattern() {
+            const name = document.getElementById('patternName').value.trim();
+            if (!name) {
+                alert('Please enter a pattern name');
+                return;
+            }
+            
+            const cells = [];
+            for (let i = 0; i < editorRows; i++) {
+                for (let j = 0; j < editorCols; j++) {
+                    if (editorGrid[i][j]) {
+                        cells.push([i, j]);
+                    }
+                }
+            }
+            
+            if (cells.length === 0) {
+                alert('Pattern is empty');
+                return;
+            }
+            
+            patterns[name] = cells;
+            localStorage.setItem('gameOfLifePatterns', JSON.stringify(patterns));
+            updatePatternList();
+            closeEditor();
+        }
+        
+        function closeEditor() {
+            modal.style.display = 'none';
+        }
+        
+        function clearEditor() {
+            initEditorGrid();
+        }
+        
+        function initEditorGrid() {
+            editorGrid = [];
+            for (let i = 0; i < editorRows; i++) {
+                editorGrid[i] = new Array(editorCols).fill(false);
+            }
+            editorCanvas.width = editorCols * editorCellSize;
+            editorCanvas.height = editorRows * editorCellSize;
+            drawEditorGrid();
+        }
+        
+        function movePattern(direction) {
+            const newGrid = [];
+            for (let i = 0; i < editorRows; i++) {
+                newGrid[i] = new Array(editorCols).fill(false);
+            }
+            
+            for (let i = 0; i < editorRows; i++) {
+                for (let j = 0; j < editorCols; j++) {
+                    if (editorGrid[i][j]) {
+                        let newRow = i;
+                        let newCol = j;
+                        
+                        switch(direction) {
+                            case 'up':
+                                newRow = i - 1;
+                                break;
+                            case 'down':
+                                newRow = i + 1;
+                                break;
+                            case 'left':
+                                newCol = j - 1;
+                                break;
+                            case 'right':
+                                newCol = j + 1;
+                                break;
+                        }
+                        
+                        if (newRow >= 0 && newRow < editorRows && newCol >= 0 && newCol < editorCols) {
+                            newGrid[newRow][newCol] = true;
+                        }
+                    }
+                }
+            }
+            
+            editorGrid = newGrid;
+            drawEditorGrid();
+        }
+        
+        function drawEditorGrid() {
+            editorCtx.fillStyle = '#000';
+            editorCtx.fillRect(0, 0, editorCanvas.width, editorCanvas.height);
+            
+            editorCtx.fillStyle = '#4CAF50';
+            for (let i = 0; i < editorRows; i++) {
+                for (let j = 0; j < editorCols; j++) {
+                    if (editorGrid[i][j]) {
+                        editorCtx.fillRect(j * editorCellSize, i * editorCellSize, 
+                                         editorCellSize - 1, editorCellSize - 1);
+                    }
+                }
+            }
+            
+            // Draw grid lines
+            editorCtx.strokeStyle = '#444';
+            editorCtx.lineWidth = 1;
+            editorCtx.beginPath();
+            for (let i = 0; i <= editorCols; i++) {
+                editorCtx.moveTo(i * editorCellSize, 0);
+                editorCtx.lineTo(i * editorCellSize, editorRows * editorCellSize);
+            }
+            for (let i = 0; i <= editorRows; i++) {
+                editorCtx.moveTo(0, i * editorCellSize);
+                editorCtx.lineTo(editorCols * editorCellSize, i * editorCellSize);
+            }
+            editorCtx.stroke();
+        }
+        
+        // Mouse handling
+        function getCellCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const col = Math.floor(x / cellSize);
+            const row = Math.floor(y / cellSize);
+            return { row, col };
+        }
+        
+        function getEditorCellCoords(e) {
+            const rect = editorCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const col = Math.floor(x / editorCellSize);
+            const row = Math.floor(y / editorCellSize);
+            return { row, col };
+        }
+        
+        function toggleCell(row, col, state) {
+            if (row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
+                grid[row][col] = state;
+                updateStats();
+                draw();
+            }
+        }
+        
+        function placePattern(row, col) {
+            if (!selectedPattern) return;
+            
+            const pattern = patterns[selectedPattern];
+            if (!pattern) return;
+            
+            // Clear area around pattern
+            let maxRow = 0, maxCol = 0;
+            pattern.forEach(([r, c]) => {
+                maxRow = Math.max(maxRow, r);
+                maxCol = Math.max(maxCol, c);
+            });
+            
+            for (let i = -2; i < maxRow + 3; i++) {
+                for (let j = -2; j < maxCol + 3; j++) {
+                    const clearRow = row + i;
+                    const clearCol = col + j;
+                    if (clearRow >= 0 && clearRow < gridSize && clearCol >= 0 && clearCol < gridSize) {
+                        grid[clearRow][clearCol] = false;
+                    }
+                }
+            }
+            
+            // Place the pattern
+            pattern.forEach(([r, c]) => {
+                const newRow = row + r;
+                const newCol = col + c;
+                if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize) {
+                    grid[newRow][newCol] = true;
+                }
+            });
+            
+            updateStats();
+            draw();
+        }
+        
+        // Event listeners
+        playBtn.addEventListener('click', play);
+        pauseBtn.addEventListener('click', pause);
+        stepBtn.addEventListener('click', step);
+        clearBtn.addEventListener('click', clear);
+        randomBtn.addEventListener('click', randomize);
+        
+        drawBtn.addEventListener('click', () => {
+            drawMode = true;
+            drawBtn.classList.add('active');
+            eraseBtn.classList.remove('active');
+            modeIndicator.textContent = 'Drawing';
+            modeIndicator.className = 'draw-mode-indicator draw';
+            selectedPattern = null;
+        });
+        
+        eraseBtn.addEventListener('click', () => {
+            drawMode = false;
+            drawBtn.classList.remove('active');
+            eraseBtn.classList.add('active');
+            modeIndicator.textContent = 'Erasing';
+            modeIndicator.className = 'draw-mode-indicator erase';
+            selectedPattern = null;
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDrawing = true;
+            const { row, col } = getCellCoords(e);
+            
+            if (selectedPattern) {
+                placePattern(row, col);
+                selectedPattern = null;
+                modeIndicator.textContent = drawMode ? 'Drawing' : 'Erasing';
+            } else {
+                const state = e.button === 0 ? drawMode : false;
+                toggleCell(row, col, state);
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const { row, col } = getCellCoords(e);
+            
+            if (isDrawing && !selectedPattern) {
+                const state = e.buttons === 1 ? drawMode : false;
+                toggleCell(row, col, state);
+            }
+            
+            if (selectedPattern) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = e.clientX + 10 + 'px';
+                tooltip.style.top = e.clientY + 10 + 'px';
+                tooltip.textContent = `Click to place ${selectedPattern}`;
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+            tooltip.style.display = 'none';
+        });
+        
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        
+        // Editor event listeners
+        editorCanvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDrawingInEditor = true;
+            const { row, col } = getEditorCellCoords(e);
+            if (row >= 0 && row < editorRows && col >= 0 && col < editorCols) {
+                editorGrid[row][col] = !editorGrid[row][col];
+                drawEditorGrid();
+            }
+        });
+        
+        editorCanvas.addEventListener('mousemove', (e) => {
+            if (isDrawingInEditor) {
+                const { row, col } = getEditorCellCoords(e);
+                if (row >= 0 && row < editorRows && col >= 0 && col < editorCols) {
+                    editorGrid[row][col] = true;
+                    drawEditorGrid();
+                }
+            }
+        });
+        
+        editorCanvas.addEventListener('mouseup', () => {
+            isDrawingInEditor = false;
+        });
+        
+        editorCanvas.addEventListener('mouseleave', () => {
+            isDrawingInEditor = false;
+        });
+        
+        // Slider events
+        speedSlider.addEventListener('input', (e) => {
+            speedValue.textContent = e.target.value;
+        });
+        
+        cellSizeSlider.addEventListener('input', (e) => {
+            cellSize = parseInt(e.target.value);
+            cellSizeValue.textContent = cellSize;
+            canvas.width = gridSize * cellSize;
+            canvas.height = gridSize * cellSize;
+            draw();
+        });
+        
+        gridSizeSlider.addEventListener('input', (e) => {
+            pause();
+            gridSize = parseInt(e.target.value);
+            gridSizeValue.textContent = gridSize;
+            canvas.width = gridSize * cellSize;
+            canvas.height = gridSize * cellSize;
+            initGrid();
+            draw();
+        });
+        
+        // Zoom with mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -1 : 1;
+            const newSize = Math.max(2, Math.min(20, cellSize + delta));
+            cellSizeSlider.value = newSize;
+            cellSize = newSize;
+            cellSizeValue.textContent = newSize;
+            canvas.width = gridSize * cellSize;
+            canvas.height = gridSize * cellSize;
+            draw();
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeEditor();
+            }
+        });
+        
+        // Initialize
+        canvas.width = gridSize * cellSize;
+        canvas.height = gridSize * cellSize;
+        initGrid();
+        updatePatternList();
+        draw();
+    </script>
+</body>
+</html>

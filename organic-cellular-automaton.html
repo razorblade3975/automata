@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organic Cellular Automaton</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #1557b0;
+        }
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            font-size: 12px;
+        }
+        input[type="range"] {
+            width: 150px;
+            vertical-align: middle;
+        }
+        .value {
+            display: inline-block;
+            width: 40px;
+            text-align: right;
+            font-size: 12px;
+        }
+        select {
+            margin: 5px;
+            padding: 5px;
+            font-size: 14px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 3px;
+        }
+        .info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="controls">
+        <h3 style="margin-top: 0;">Organic Cellular Automaton</h3>
+        
+        <div>
+            <button id="startBtn">Start</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button id="resetBtn">Reset</button>
+            <button id="stepBtn">Step</button>
+        </div>
+        
+        <div>
+            <label>Pattern Type:</label>
+            <select id="patternType">
+                <option value="organic">Organic Growth</option>
+                <option value="coral">Coral-like</option>
+                <option value="dendrite">Dendrite</option>
+                <option value="crystal">Crystal</option>
+                <option value="lichen">Lichen</option>
+            </select>
+        </div>
+        
+        <div class="slider-container">
+            <label>Growth Rate:</label>
+            <input type="range" id="growthRate" min="0.01" max="0.5" step="0.01" value="0.1">
+            <span class="value" id="growthRateValue">0.10</span>
+        </div>
+        
+        <div class="slider-container">
+            <label>Branch Prob:</label>
+            <input type="range" id="branchProb" min="0" max="1" step="0.01" value="0.3">
+            <span class="value" id="branchProbValue">0.30</span>
+        </div>
+        
+        <div class="slider-container">
+            <label>Speed:</label>
+            <input type="range" id="speed" min="1" max="60" value="30">
+            <span class="value" id="speedValue">30</span>
+        </div>
+        
+        <div class="slider-container">
+            <label>Cell Size:</label>
+            <input type="range" id="cellSize" min="1" max="5" value="2">
+            <span class="value" id="cellSizeValue">2</span>
+        </div>
+        
+        <div>
+            <label>
+                <input type="checkbox" id="showAge" checked> Show Age Colors
+            </label>
+        </div>
+    </div>
+    
+    <div class="info">
+        <p>Click anywhere on the canvas to add new growth seeds. Each pattern type uses different rules to create organic structures.</p>
+        <p>Generation: <span id="generation">0</span></p>
+        <p>Active Cells: <span id="activeCells">0</span></p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let cellSize = 2;
+        let cols, rows;
+        let grid = [];
+        let nextGrid = [];
+        let generation = 0;
+        let isRunning = false;
+        let animationId = null;
+        
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const patternSelect = document.getElementById('patternType');
+        const growthRateSlider = document.getElementById('growthRate');
+        const branchProbSlider = document.getElementById('branchProb');
+        const speedSlider = document.getElementById('speed');
+        const cellSizeSlider = document.getElementById('cellSize');
+        const showAgeCheckbox = document.getElementById('showAge');
+        
+        const growthRateValue = document.getElementById('growthRateValue');
+        const branchProbValue = document.getElementById('branchProbValue');
+        const speedValue = document.getElementById('speedValue');
+        const cellSizeValue = document.getElementById('cellSizeValue');
+        const generationSpan = document.getElementById('generation');
+        const activeCellsSpan = document.getElementById('activeCells');
+        
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            
+            cols = Math.floor(width / cellSize);
+            rows = Math.floor(height / cellSize);
+            
+            initGrid();
+        }
+        
+        function initGrid() {
+            grid = [];
+            nextGrid = [];
+            
+            for (let i = 0; i < rows; i++) {
+                grid[i] = [];
+                nextGrid[i] = [];
+                for (let j = 0; j < cols; j++) {
+                    grid[i][j] = { state: 0, age: 0 };
+                    nextGrid[i][j] = { state: 0, age: 0 };
+                }
+            }
+            
+            // Add initial seeds
+            addRandomSeeds(3);
+            generation = 0;
+        }
+        
+        function addRandomSeeds(count) {
+            for (let i = 0; i < count; i++) {
+                const x = Math.floor(Math.random() * cols);
+                const y = Math.floor(Math.random() * rows);
+                grid[y][x] = { state: 1, age: 0 };
+            }
+        }
+        
+        function addSeed(x, y) {
+            const col = Math.floor(x / cellSize);
+            const row = Math.floor(y / cellSize);
+            
+            if (col >= 0 && col < cols && row >= 0 && row < rows) {
+                grid[row][col] = { state: 1, age: 0 };
+                draw();
+            }
+        }
+        
+        function getNeighbors(row, col, radius = 1) {
+            const neighbors = [];
+            
+            for (let i = -radius; i <= radius; i++) {
+                for (let j = -radius; j <= radius; j++) {
+                    if (i === 0 && j === 0) continue;
+                    
+                    const newRow = row + i;
+                    const newCol = col + j;
+                    
+                    if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
+                        neighbors.push(grid[newRow][newCol]);
+                    }
+                }
+            }
+            
+            return neighbors;
+        }
+        
+        function getDirectNeighbors(row, col) {
+            const neighbors = [];
+            const directions = [[-1,0], [1,0], [0,-1], [0,1]];
+            
+            for (const [dr, dc] of directions) {
+                const newRow = row + dr;
+                const newCol = col + dc;
+                
+                if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
+                    neighbors.push({
+                        cell: grid[newRow][newCol],
+                        row: newRow,
+                        col: newCol
+                    });
+                }
+            }
+            
+            return neighbors;
+        }
+        
+        function update() {
+            const pattern = patternSelect.value;
+            const growthRate = parseFloat(growthRateSlider.value);
+            const branchProb = parseFloat(branchProbSlider.value);
+            
+            // Copy current state
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    nextGrid[i][j] = { ...grid[i][j] };
+                }
+            }
+            
+            // Apply rules based on pattern type
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const cell = grid[i][j];
+                    
+                    if (cell.state === 0) {
+                        // Empty cell - check if it should grow
+                        const neighbors = getNeighbors(i, j);
+                        const activeNeighbors = neighbors.filter(n => n.state === 1);
+                        
+                        if (activeNeighbors.length > 0) {
+                            let shouldGrow = false;
+                            
+                            switch (pattern) {
+                                case 'organic':
+                                    shouldGrow = activeNeighbors.length >= 1 && 
+                                               activeNeighbors.length <= 3 && 
+                                               Math.random() < growthRate;
+                                    break;
+                                    
+                                case 'coral':
+                                    shouldGrow = activeNeighbors.length === 1 && 
+                                               Math.random() < growthRate;
+                                    break;
+                                    
+                                case 'dendrite':
+                                    const directNeighbors = getDirectNeighbors(i, j);
+                                    const activeDirectCount = directNeighbors.filter(n => n.cell.state === 1).length;
+                                    shouldGrow = activeDirectCount === 1 && 
+                                               Math.random() < growthRate * (1 + branchProb);
+                                    break;
+                                    
+                                case 'crystal':
+                                    shouldGrow = (activeNeighbors.length === 1 || 
+                                                activeNeighbors.length === 2) && 
+                                               Math.random() < growthRate;
+                                    break;
+                                    
+                                case 'lichen':
+                                    const avgAge = activeNeighbors.reduce((sum, n) => sum + n.age, 0) / activeNeighbors.length;
+                                    shouldGrow = activeNeighbors.length >= 1 && 
+                                               activeNeighbors.length <= 4 &&
+                                               Math.random() < growthRate * (1 - avgAge / 100);
+                                    break;
+                            }
+                            
+                            if (shouldGrow) {
+                                nextGrid[i][j] = { state: 1, age: 0 };
+                            }
+                        }
+                    } else {
+                        // Active cell - age it
+                        nextGrid[i][j].age = Math.min(cell.age + 1, 255);
+                        
+                        // Some patterns might die based on age or conditions
+                        if (pattern === 'lichen' && cell.age > 50 && Math.random() < 0.01) {
+                            nextGrid[i][j].state = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Swap grids
+            [grid, nextGrid] = [nextGrid, grid];
+            generation++;
+        }
+        
+        function getColorForAge(age, maxAge = 100) {
+            if (!showAgeCheckbox.checked) {
+                return 'rgb(255, 255, 255)';
+            }
+            
+            const pattern = patternSelect.value;
+            const normalizedAge = Math.min(age / maxAge, 1);
+            
+            switch (pattern) {
+                case 'organic':
+                    // Green to yellow gradient
+                    const r1 = Math.floor(normalizedAge * 255);
+                    const g1 = 255;
+                    const b1 = Math.floor((1 - normalizedAge) * 100);
+                    return `rgb(${r1}, ${g1}, ${b1})`;
+                    
+                case 'coral':
+                    // Pink to purple gradient
+                    const r2 = 255;
+                    const g2 = Math.floor((1 - normalizedAge) * 150);
+                    const b2 = Math.floor(150 + normalizedAge * 105);
+                    return `rgb(${r2}, ${g2}, ${b2})`;
+                    
+                case 'dendrite':
+                    // Blue to cyan gradient
+                    const r3 = Math.floor(normalizedAge * 100);
+                    const g3 = Math.floor(150 + normalizedAge * 105);
+                    const b3 = 255;
+                    return `rgb(${r3}, ${g3}, ${b3})`;
+                    
+                case 'crystal':
+                    // White to blue gradient
+                    const r4 = Math.floor(255 - normalizedAge * 155);
+                    const g4 = Math.floor(255 - normalizedAge * 155);
+                    const b4 = 255;
+                    return `rgb(${r4}, ${g4}, ${b4})`;
+                    
+                case 'lichen':
+                    // Yellow-green to brown gradient
+                    const r5 = Math.floor(200 - normalizedAge * 100);
+                    const g5 = Math.floor(220 - normalizedAge * 70);
+                    const b5 = Math.floor(100 - normalizedAge * 50);
+                    return `rgb(${r5}, ${g5}, ${b5})`;
+                    
+                default:
+                    return 'rgb(255, 255, 255)';
+            }
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+            
+            let activeCells = 0;
+            
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (grid[i][j].state === 1) {
+                        ctx.fillStyle = getColorForAge(grid[i][j].age);
+                        ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+                        activeCells++;
+                    }
+                }
+            }
+            
+            generationSpan.textContent = generation;
+            activeCellsSpan.textContent = activeCells;
+        }
+        
+        function animate() {
+            if (isRunning) {
+                update();
+                draw();
+                
+                const fps = parseInt(speedSlider.value);
+                setTimeout(() => {
+                    animationId = requestAnimationFrame(animate);
+                }, 1000 / fps);
+            }
+        }
+        
+        function start() {
+            isRunning = true;
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            stepBtn.disabled = true;
+            animate();
+        }
+        
+        function pause() {
+            isRunning = false;
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            stepBtn.disabled = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+        }
+        
+        function reset() {
+            pause();
+            initGrid();
+            draw();
+        }
+        
+        function step() {
+            if (!isRunning) {
+                update();
+                draw();
+            }
+        }
+        
+        // Event listeners
+        startBtn.addEventListener('click', start);
+        pauseBtn.addEventListener('click', pause);
+        resetBtn.addEventListener('click', reset);
+        stepBtn.addEventListener('click', step);
+        
+        canvas.addEventListener('click', (e) => {
+            addSeed(e.clientX, e.clientY);
+        });
+        
+        growthRateSlider.addEventListener('input', (e) => {
+            growthRateValue.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        branchProbSlider.addEventListener('input', (e) => {
+            branchProbValue.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+        
+        speedSlider.addEventListener('input', (e) => {
+            speedValue.textContent = e.target.value;
+        });
+        
+        cellSizeSlider.addEventListener('input', (e) => {
+            cellSizeValue.textContent = e.target.value;
+            cellSize = parseInt(e.target.value);
+            resizeCanvas();
+            draw();
+        });
+        
+        showAgeCheckbox.addEventListener('change', () => {
+            draw();
+        });
+        
+        patternSelect.addEventListener('change', () => {
+            draw();
+        });
+        
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            draw();
+        });
+        
+        // Initialize
+        resizeCanvas();
+        draw();
+    </script>
+</body>
+</html>
