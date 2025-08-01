@@ -4,7 +4,9 @@ A collection of interactive cellular automata visualizations built with HTML5 Ca
 
 ## Live Demo
 
-Visit the GitHub Pages site to try out the visualizations: [https://razorblade3975.github.io/automata/](https://razorblade3975.github.io/automata/)
+Visit the GitHub Pages site to try out the visualizations: 
+[https://razorblade3975.github.io/automata/conways-game-of-life-unified.html](https://razorblade3975.github.io/automata/conways-game-of-life-unified.html)
+[https://razorblade3975.github.io/automata/elementary-cellular-automaton.html](https://razorblade3975.github.io/automata/elementary-cellular-automaton.html)
 
 ## Visualizations
 
